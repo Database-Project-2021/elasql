@@ -27,6 +27,8 @@ public abstract class Key implements Serializable {
 	// because a Constant is non-serializable.
 	private transient Constant[] values;
 	private int hashCode;
+
+	private int size = 0;
 	
 	protected Key(String tableName, String fld, Constant val) {
 		this.tableName = tableName;
@@ -34,6 +36,7 @@ public abstract class Key implements Serializable {
 		this.values = new Constant[] { val };
 		
 		genHashCode();
+		genValSize();
 	}
 	
 	protected Key(String tableName, String[] fields, Constant[] values) {
@@ -45,6 +48,7 @@ public abstract class Key implements Serializable {
 		this.values = values;
 		
 		genHashCode();
+		genValSize();
 	}
 	
 	protected Key(Key otherKey) {
@@ -53,6 +57,13 @@ public abstract class Key implements Serializable {
 		this.values = Arrays.copyOf(otherKey.values, otherKey.values.length);
 		
 		genHashCode();
+		genValSize();
+	}
+
+	// MODIFIED: 
+	private void genValSize(){
+		for(Constant val : values)
+			size += val.size();
 	}
 
 	public String getTableName() {
@@ -85,6 +96,11 @@ public abstract class Key implements Serializable {
 				return values[i];
 		}
 		return null;
+	}
+
+	// MODIFIED:
+	public int size(){
+		return size;
 	}
 
 	public Predicate toPredicate() {

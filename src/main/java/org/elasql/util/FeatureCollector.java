@@ -42,7 +42,14 @@ public class FeatureCollector {
 		return LOCAL_FEATURE_COLLECTOR.get();
 	}
 	
-	public static String[] keys = {"Start time", "Read PK", "Write PK"};
+	// MODIFIED:
+	public static String[] keys = {"Start time", "Read PK", "Write PK", 
+		"Num of reads", "Num of writes", // OU1 [3-4]
+		"Num of active txs", "Thread pool size" , " CPU utilization", // OU2 [5-7]
+		"Num of cache read", "Num of cache insert", "Num of cache update", "Num of arithmetic operations", // OU6 [8-11]
+		"Num of write record", "Num of bytes", // OU7 [12-13]
+		"Num of read write record", "Num of log flush bytes", // OU8 [14-15]
+		};
 	
 	// Record features and it's value (may be list)
 	private Map<String, Object> features = new HashMap<String, Object>();

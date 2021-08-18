@@ -48,6 +48,9 @@ public abstract class TPartStoredProcedure<H extends StoredProcedureParamHelper>
 	private List<CachedEntryKey> cachedEntrySet = new ArrayList<CachedEntryKey>();
 	private boolean isCommitted = false;
 
+	// MODIFIED:
+	private int bytes = 0;
+
 	public TPartStoredProcedure(long txNum, H paramHelper) {
 		super(paramHelper);
 		
@@ -57,6 +60,9 @@ public abstract class TPartStoredProcedure<H extends StoredProcedureParamHelper>
 		this.txNum = txNum;
 		this.paramHelper = paramHelper;
 		this.localNodeId = Elasql.serverId();
+		
+		// MODIFIED:
+		genReadWriteSetByte();
 	}
 
 	public abstract double getWeight();
@@ -64,6 +70,45 @@ public abstract class TPartStoredProcedure<H extends StoredProcedureParamHelper>
 	protected abstract void prepareKeys();
 
 	protected abstract void executeSql(Map<PrimaryKey, CachedRecord> readings);
+
+	// MODIFIED:
+	private void genReadWriteSetByte(){
+		for(PrimaryKey k : readKeys)
+			bytes += k.size();
+
+		for(PrimaryKey k : writeKeys)
+			bytes += k.size();
+	}
+
+	// MODIFIED:
+	public int getReadKeyNum(){
+		throw new UnsupportedOperationException("Not Implement yet");
+	}
+
+	// MODIFIED:
+	public int getInsertKeyNum(){
+		throw new UnsupportedOperationException("Not Implement yet");
+	}
+
+	// MODIFIED:
+	public int getUpdateKeyNum(){
+		throw new UnsupportedOperationException("Not Implement yet");
+	}
+
+	// MODIFIED:
+	public int getArithNum(){
+		throw new UnsupportedOperationException("Not Implement yet");
+	}
+
+	// MODIFIED:
+	public int getReadWriteSetSize(){
+		return readKeys.size() + writeKeys.size();
+	}
+
+	// MODIFIED:
+	public int getReadWriteSetByte(){
+		return bytes;
+	}
 
 	@Override
 	public void prepare(Object... pars) {
@@ -196,6 +241,11 @@ public abstract class TPartStoredProcedure<H extends StoredProcedureParamHelper>
 
 	protected void delete(PrimaryKey key) {
 		cache.delete(key);
+	}
+
+	// MODIFIED: 
+	public int getReadingsSize(){
+		return plan.getSinkReadingInfo().size() + plan.getReadSet().size();
 	}
 
 	private void executeTransactionLogic() {
