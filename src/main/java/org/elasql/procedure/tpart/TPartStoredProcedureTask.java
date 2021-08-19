@@ -97,8 +97,8 @@ public class TPartStoredProcedureTask
 		collector.setFeatureValue(FeatureCollector.keys[11], tsp.getArithNum());
 
 		// OU7: Write To Storage
-		collector.setFeatureValue(FeatureCollector.keys[12], -1);
-		collector.setFeatureValue(FeatureCollector.keys[13], -1);
+		collector.setFeatureValue(FeatureCollector.keys[12], tsp.getWriteSetSize());
+		collector.setFeatureValue(FeatureCollector.keys[13], tsp.getWriteSetByte());
 
 		// OU8 - Transaction Commit
 		collector.setFeatureValue(FeatureCollector.keys[14], tsp.getReadWriteSetSize());

@@ -49,7 +49,8 @@ public abstract class TPartStoredProcedure<H extends StoredProcedureParamHelper>
 	private boolean isCommitted = false;
 
 	// MODIFIED:
-	private int bytes = 0;
+	private int readBytes = 0;
+	private int writeBytes = 0;
 
 	public TPartStoredProcedure(long txNum, H paramHelper) {
 		super(paramHelper);
@@ -74,10 +75,10 @@ public abstract class TPartStoredProcedure<H extends StoredProcedureParamHelper>
 	// MODIFIED:
 	private void genReadWriteSetByte(){
 		for(PrimaryKey k : readKeys)
-			bytes += k.size();
+			readBytes += k.size();
 
 		for(PrimaryKey k : writeKeys)
-			bytes += k.size();
+			writeBytes += k.size();
 	}
 
 	// MODIFIED:
@@ -99,6 +100,16 @@ public abstract class TPartStoredProcedure<H extends StoredProcedureParamHelper>
 	public int getArithNum(){
 		throw new UnsupportedOperationException("Not Implement yet");
 	}
+	
+	// MODIFIED:
+	public int getWriteSetSize() {
+		return writeKeys.size();
+	}
+	
+	// MODIFIED:
+	public int getWriteSetByte() {
+		return writeBytes;
+	}
 
 	// MODIFIED:
 	public int getReadWriteSetSize(){
@@ -107,7 +118,7 @@ public abstract class TPartStoredProcedure<H extends StoredProcedureParamHelper>
 
 	// MODIFIED:
 	public int getReadWriteSetByte(){
-		return bytes;
+		return readBytes + writeBytes;
 	}
 
 	@Override
