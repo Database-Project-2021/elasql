@@ -43,12 +43,17 @@ public class FeatureCollector {
 	}
 	
 	// MODIFIED:
+	// OU1 [3-4]
+	// OU2 [5-7]
+	// OU6 [8-11]
+	// OU7 [12-13]
+	// OU8 [14-15]
 	public static String[] keys = {"Start time", "Read PK", "Write PK", 
-		"Num of reads", "Num of writes", // OU1 [3-4]
-		"Num of active txs", "Thread pool size" , " CPU utilization", // OU2 [5-7]
-		"Num of cache read", "Num of cache insert", "Num of cache update", "Num of arithmetic operations", // OU6 [8-11]
-		"Num of write record", "Num of bytes", // OU7 [12-13]
-		"Num of read write record", "Num of log flush bytes", // OU8 [14-15]
+		"Num of reads", "Num of writes", 
+		"Num of active txs", "Thread pool size", " CPU utilization", 
+		"Num of cache read", "Num of cache insert", "Num of cache update", "Num of arithmetic operations", 
+		"Num of write record", "Num of bytes", 
+		"Num of read write record", "Num of log flush bytes", 
 		};
 	
 	// Record features and it's value (may be list)
