@@ -1,8 +1,10 @@
 package org.elasql.cache.tpart;
 
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.HashSet;
 import java.util.Set;
 
 import org.elasql.cache.CachedRecord;
@@ -19,12 +21,16 @@ public class TPartTxLocalCache {
 	private TPartCacheMgr cacheMgr;
 	private Map<PrimaryKey, CachedRecord> recordCache = new HashMap<PrimaryKey, CachedRecord>();
 	private long localStorageId;
+	// MODIIFIED:
+	// CachedNumber of {Read, Update, Insert, Delete}
+	private int[] cachedNum = {0, 0, 0, 0};
+	private Set<PrimaryKey> cachedWriteKeys = new HashSet<PrimaryKey>();
 
 	public TPartTxLocalCache(Transaction tx) {
 		this.tx = tx;
 		this.txNum = tx.getTransactionNumber();
 		this.cacheMgr = (TPartCacheMgr) Elasql.remoteRecReceiver();
-		this.localStorageId = TPartCacheMgr.toSinkId(Elasql.serverId());
+		this.localStorageId = TPartCacheMgr.toSinkId(Elasql.serverId());  
 	}
 
 	/**
@@ -77,6 +83,7 @@ public class TPartTxLocalCache {
 
 		rec = cacheMgr.takeFromTx(key, src, txNum);
 		recordCache.put(key, rec);
+		cachedNum[0]++;
 		
 		return rec;
 	}
@@ -84,18 +91,23 @@ public class TPartTxLocalCache {
 	public void update(PrimaryKey key, CachedRecord rec) {
 		rec.setSrcTxNum(txNum);
 		recordCache.put(key, rec);
+		cachedWriteKeys.add(key);
+		cachedNum[1]++;
 	}
 
 	public void insert(PrimaryKey key, Map<String, Constant> fldVals) {
 		CachedRecord rec = CachedRecord.newRecordForInsertion(key, fldVals);
 		rec.setSrcTxNum(tx.getTransactionNumber());
 		recordCache.put(key, rec);
+		cachedWriteKeys.add(key);
+		cachedNum[2]++;
 	}
 
 	public void delete(PrimaryKey key) {
 		CachedRecord dummyRec = CachedRecord.newRecordForDeletion(key);
 		dummyRec.setSrcTxNum(tx.getTransactionNumber());
 		recordCache.put(key, dummyRec);
+		cachedNum[3]++;
 	}
 
 	public void flush(SunkPlan plan, List<CachedEntryKey> cachedEntrySet) {
@@ -149,5 +161,21 @@ public class TPartTxLocalCache {
 		for (PrimaryKey key : plan.getCacheDeletions())
 			cacheMgr.deleteFromCache(key, txNum);
 //		timer.stopComponentTimer("Delete cached records");
+	}
+	// MODIFIED:
+	public int getCachedReadNum() {
+		return cachedNum[0];
+	}
+	public int getCachedUpdateNum() {
+		return cachedNum[1];
+	}
+	public int getCachedInsertNum() {
+		return cachedNum[2];
+	}
+	public int getCachedDeleteNum() {
+		return cachedNum[3];
+	}
+	public Set<PrimaryKey> getCachedWriteKeys(){
+		return cachedWriteKeys;
 	}
 }

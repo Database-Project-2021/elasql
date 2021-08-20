@@ -83,17 +83,17 @@ public abstract class TPartStoredProcedure<H extends StoredProcedureParamHelper>
 
 	// MODIFIED:
 	public int getReadKeyNum(){
-		throw new UnsupportedOperationException("Not Implement yet");
+		return cache.getCachedReadNum();
 	}
 
 	// MODIFIED:
 	public int getInsertKeyNum(){
-		throw new UnsupportedOperationException("Not Implement yet");
+		return cache.getCachedInsertNum();
 	}
 
 	// MODIFIED:
 	public int getUpdateKeyNum(){
-		throw new UnsupportedOperationException("Not Implement yet");
+		return cache.getCachedUpdateNum();
 	}
 
 	// MODIFIED:
@@ -103,12 +103,15 @@ public abstract class TPartStoredProcedure<H extends StoredProcedureParamHelper>
 	
 	// MODIFIED:
 	public int getWriteSetSize() {
-		return writeKeys.size();
+		return cache.getCachedWriteKeys().size();
 	}
 	
 	// MODIFIED:
 	public int getWriteSetByte() {
-		return writeBytes;
+		int retSize = 0;
+		for(PrimaryKey k : cache.getCachedWriteKeys())
+			retSize += k.size();
+		return retSize;
 	}
 
 	// MODIFIED:
