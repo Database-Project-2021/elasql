@@ -43,12 +43,12 @@ public class FeatureCollector {
 	}
 	
 	// MODIFIED:
-	// OU1 [3-4]
-	// OU2 [5-7]
-	// OU6 [8-11]
-	// OU7 [12-13]
-	// OU8 [14-15]
-	public static String[] keys = {"Start time", "Read PK", "Write PK", 
+	// OU1 [1-2]
+	// OU2 [3-5]
+	// OU6 [6-9]
+	// OU7 [10-11]
+	// OU8 [12-13]
+	public static String[] keys = {"Start time",  
 		"Num of reads", "Num of writes", 
 		"Num of active txs", "Thread pool size", " CPU utilization", 
 		"Num of cache read", "Num of cache insert", "Num of cache update", "Num of arithmetic operations", 

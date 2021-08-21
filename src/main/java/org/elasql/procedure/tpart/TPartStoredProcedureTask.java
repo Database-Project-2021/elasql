@@ -82,34 +82,36 @@ public class TPartStoredProcedureTask
 		collector.setFeatureValue(FeatureCollector.keys[0], (txStartTime - firstTxStartTime)/1000);
 		
 		// OU1: Generating Execution Plan
-		collector.setFeatureValue(FeatureCollector.keys[3], tsp.getReadSet().size());
-		collector.setFeatureValue(FeatureCollector.keys[4], tsp.getWriteSet().size());
+		collector.setFeatureValue(FeatureCollector.keys[1], tsp.getReadSet().size());
+		collector.setFeatureValue(FeatureCollector.keys[2], tsp.getWriteSet().size());
 
 		// OU2: Initialize A Thread
-		collector.setFeatureValue(FeatureCollector.keys[5], Elasql.txMgr().getActiveTxCount());
-		collector.setFeatureValue(FeatureCollector.keys[6], TaskMgr.THREAD_POOL_SIZE);
-		collector.setFeatureValue(FeatureCollector.keys[7], SystemInfo.getCpuUsage());
+		collector.setFeatureValue(FeatureCollector.keys[3], Elasql.txMgr().getActiveTxCount());
+		collector.setFeatureValue(FeatureCollector.keys[4], TaskMgr.THREAD_POOL_SIZE);
+		collector.setFeatureValue(FeatureCollector.keys[5], SystemInfo.getCpuUsage());
 
-		// OU6: Execute Procedure Logic
-		collector.setFeatureValue(FeatureCollector.keys[8], tsp.getReadKeyNum());
-		collector.setFeatureValue(FeatureCollector.keys[9], tsp.getInsertKeyNum());
-		collector.setFeatureValue(FeatureCollector.keys[10], tsp.getUpdateKeyNum());
-		collector.setFeatureValue(FeatureCollector.keys[11], tsp.getArithNum());
-
-		// OU7: Write To Storage
-		collector.setFeatureValue(FeatureCollector.keys[12], tsp.getWriteSetSize());
-		collector.setFeatureValue(FeatureCollector.keys[13], tsp.getWriteSetByte());
 
 		// OU8 - Transaction Commit
-		collector.setFeatureValue(FeatureCollector.keys[14], tsp.getReadWriteSetSize());
-		collector.setFeatureValue(FeatureCollector.keys[15], tsp.getReadWriteSetByte());
+		collector.setFeatureValue(FeatureCollector.keys[12], tsp.getReadWriteSetSize());
+		collector.setFeatureValue(FeatureCollector.keys[13], tsp.getReadWriteSetByte());
 
-		collector.setFeatureValue(FeatureCollector.keys[1], tsp.getReadSet());
-		collector.setFeatureValue(FeatureCollector.keys[2], tsp.getWriteSet());
-		// Record the feature result
-		TransactionFeaturesRecorder.recordResult(txNum, collector);
+		// collector.setFeatureValue(FeatureCollector.keys[1], tsp.getReadSet());
+		// collector.setFeatureValue(FeatureCollector.keys[2], tsp.getWriteSet());
 		
 		rs = tsp.execute();
+		
+		// OU6: Execute Procedure Logic
+		collector.setFeatureValue(FeatureCollector.keys[6], tsp.getReadKeyNum());
+		collector.setFeatureValue(FeatureCollector.keys[7], tsp.getInsertKeyNum());
+		collector.setFeatureValue(FeatureCollector.keys[8], tsp.getUpdateKeyNum());
+		collector.setFeatureValue(FeatureCollector.keys[9], tsp.getArithNum());
+
+		// OU7: Write To Storage
+		collector.setFeatureValue(FeatureCollector.keys[10], tsp.getWriteSetSize());
+		collector.setFeatureValue(FeatureCollector.keys[11], tsp.getWriteSetByte());
+		
+		// Record the feature result
+		TransactionFeaturesRecorder.recordResult(txNum, collector);
 			
 		if (tsp.isMaster()) {
 			if (clientId != -1)
