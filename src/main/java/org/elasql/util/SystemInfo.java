@@ -47,7 +47,10 @@ public class SystemInfo {
 	    }
 	    long currentSysetemTime = System.nanoTime();
 	    long currentCpuTime = bean.getProcessCpuTime();
-	    double load = (currentCpuTime - lastCpuTime)/(currentSysetemTime - lastSystemTime);
+	    long denominator = (currentSysetemTime - lastSystemTime);
+	    if (denominator <= 0)
+	    	denominator = 1;
+ 	    double load = (currentCpuTime - lastCpuTime)/denominator;
 	    // smoothLoad += (load - smoothLoad) * 0.1;
 	    recordTime();
 	    return load;
