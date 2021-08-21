@@ -103,13 +103,13 @@ public abstract class TPartStoredProcedure<H extends StoredProcedureParamHelper>
 	
 	// MODIFIED:
 	public int getWriteSetSize() {
-		return cache.getCachedWriteKeys().size();
+		return plan.getLocalWriteBackInfo().size();
 	}
 	
 	// MODIFIED:
 	public int getWriteSetByte() {
 		int retSize = 0;
-		for(PrimaryKey k : cache.getCachedWriteKeys())
+		for(PrimaryKey k : plan.getLocalWriteBackInfo())
 			retSize += k.size();
 		return retSize;
 	}
