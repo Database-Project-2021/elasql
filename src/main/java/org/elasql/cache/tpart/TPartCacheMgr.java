@@ -38,6 +38,9 @@ public class TPartCacheMgr implements RemoteRecordReceiver {
 	private Map<PrimaryKey, CachedRecord> recordCache;
 
 	private final Object anchors[] = new Object[1009];
+	
+	// MODIFIED: 
+	private Set<PrimaryKey> writeBacks;
 
 	public TPartCacheMgr() {
 		for (int i = 0; i < anchors.length; ++i) {
@@ -46,6 +49,7 @@ public class TPartCacheMgr implements RemoteRecordReceiver {
 		
 		recordCache = new ConcurrentHashMap<PrimaryKey, CachedRecord>(FusionTable.EXPECTED_MAX_SIZE + 1000);
 		exchange = new ConcurrentHashMap<CachedEntryKey, CachedRecord>(FusionTable.EXPECTED_MAX_SIZE + 1000);
+		writeBacks = new HashSet<PrimaryKey>();
 		
 //		new PeriodicalJob(5000, 600000, new Runnable() {
 //			@Override
@@ -208,6 +212,7 @@ public class TPartCacheMgr implements RemoteRecordReceiver {
 		else 
 			// If it was not in the cache, write-back to the local storage
 			writeToVanillaCore(key, rec, tx);
+			
 		
 //		localCcMgr.afterWriteback(key, tx.getTransactionNumber());
 //		lockTable.release(key, tx.getTransactionNumber(), LockType.X_LOCK);
@@ -225,6 +230,7 @@ public class TPartCacheMgr implements RemoteRecordReceiver {
 		// Force insert to local storage
 		rec.setNewInserted();
 		VanillaCoreCrud.insert(key, rec, tx);
+		writeBacks.add(key);
 		
 //		localCcMgr.afterWriteback(key, tx.getTransactionNumber());
 //		lockTable.release(key, tx.getTransactionNumber(), LockType.X_LOCK);
@@ -241,11 +247,17 @@ public class TPartCacheMgr implements RemoteRecordReceiver {
 //	}
 	
 	private void writeToVanillaCore(PrimaryKey key, CachedRecord rec, Transaction tx) {
-		if (rec.isDeleted())
+		if (rec.isDeleted()) {
 			VanillaCoreCrud.delete(key, tx);
-		else if (rec.isNewInserted())
+			writeBacks.add(key);
+		}
+		else if (rec.isNewInserted()) {
 			VanillaCoreCrud.insert(key, rec, tx);
+			writeBacks.add(key);
+		}
+			
 		else if (rec.isDirty()) {
+			writeBacks.add(key);
 			if (!VanillaCoreCrud.update(key, rec, tx)) {
 				// XXX: We use this to solve a migration problem
 				// If a hot record was on other machine and belonged to another partition (not local one),
@@ -260,5 +272,12 @@ public class TPartCacheMgr implements RemoteRecordReceiver {
 				VanillaCoreCrud.insert(key, rec, tx);
 			}
 		}
+	}
+	
+	public Set<PrimaryKey> getWriteBacks(){
+		return writeBacks;
+	}
+	public void clearWriteBacks() {
+		writeBacks.clear();
 	}
 }

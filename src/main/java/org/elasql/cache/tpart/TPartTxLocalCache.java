@@ -113,6 +113,9 @@ public class TPartTxLocalCache {
 	public void flush(SunkPlan plan, List<CachedEntryKey> cachedEntrySet) {
 //		Timer timer = Timer.getLocalTimer();
 		
+		//Clear the record writeBacks of last flush.
+		cacheMgr.clearWriteBacks();
+		
 		// Pass to the transactions
 //		timer.startComponentTimer("Pass to next Tx");
 		for (Map.Entry<PrimaryKey, CachedRecord> entry : recordCache.entrySet()) {
@@ -177,5 +180,8 @@ public class TPartTxLocalCache {
 	}
 	public Set<PrimaryKey> getCachedWriteKeys(){
 		return cachedWriteKeys;
+	}
+	public Set<PrimaryKey> getWriteBacks(){
+		return cacheMgr.getWriteBacks();
 	}
 }
