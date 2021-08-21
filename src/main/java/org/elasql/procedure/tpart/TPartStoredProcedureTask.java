@@ -90,7 +90,6 @@ public class TPartStoredProcedureTask
 		collector.setFeatureValue(FeatureCollector.keys[4], TaskMgr.THREAD_POOL_SIZE);
 		collector.setFeatureValue(FeatureCollector.keys[5], SystemInfo.getCpuUsage());
 
-
 		// OU8 - Transaction Commit
 		collector.setFeatureValue(FeatureCollector.keys[12], tsp.getReadWriteSetSize());
 		collector.setFeatureValue(FeatureCollector.keys[13], tsp.getReadWriteSetByte());
