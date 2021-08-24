@@ -50,6 +50,10 @@ public abstract class TPartStoredProcedure<H extends StoredProcedureParamHelper>
 	// MODIFIED:
 	private Set<Long> dependentTxns = new HashSet<Long>();
 
+	// MODIFIED:
+	private int readBytes = 0;
+	private int writeBytes = 0;
+
 	public TPartStoredProcedure(long txNum, H paramHelper) {
 		super(paramHelper);
 		
@@ -59,6 +63,9 @@ public abstract class TPartStoredProcedure<H extends StoredProcedureParamHelper>
 		this.txNum = txNum;
 		this.paramHelper = paramHelper;
 		this.localNodeId = Elasql.serverId();
+		
+		// MODIFIED:
+		genReadWriteSetByte();
 	}
 
 	public abstract double getWeight();
@@ -66,6 +73,60 @@ public abstract class TPartStoredProcedure<H extends StoredProcedureParamHelper>
 	protected abstract void prepareKeys();
 
 	protected abstract void executeSql(Map<PrimaryKey, CachedRecord> readings);
+
+	// MODIFIED:
+	private void genReadWriteSetByte(){
+		for(PrimaryKey k : readKeys)
+			readBytes += k.size();
+
+		for(PrimaryKey k : writeKeys)
+			writeBytes += k.size();
+	}
+
+	// MODIFIED:
+	public int getReadKeyNum(){
+		return cache.getCachedReadNum();
+	}
+
+	// MODIFIED:
+	public int getInsertKeyNum(){
+		return cache.getCachedInsertNum();
+	}
+
+	// MODIFIED:
+	public int getUpdateKeyNum(){
+		return cache.getCachedUpdateNum();
+	}
+
+	// MODIFIED:
+	public int getArithNum(){
+		throw new UnsupportedOperationException("Not Implement yet");
+	}
+	
+	// MODIFIED:
+	public int getWriteSetSize() {
+		return cache.getWriteBacks().size();
+	}
+	
+	// MODIFIED:
+	public int getWriteSetByte() {
+		int retSize = 0;
+		if(cache.getWriteBacks().isEmpty())
+			return 0;
+		for(PrimaryKey k : cache.getWriteBacks())
+			retSize += k.size();
+		return retSize;
+	}
+
+	// MODIFIED:
+	public int getReadWriteSetSize(){
+		return readKeys.size() + writeKeys.size();
+	}
+
+	// MODIFIED:
+	public int getReadWriteSetByte(){
+		return readBytes + writeBytes;
+	}
 
 	@Override
 	public void prepare(Object... pars) {
@@ -236,6 +297,11 @@ public abstract class TPartStoredProcedure<H extends StoredProcedureParamHelper>
 
 	protected void delete(PrimaryKey key) {
 		cache.delete(key);
+	}
+
+	// MODIFIED: 
+	public int getReadingsSize(){
+		return plan.getSinkReadingInfo().size() + plan.getReadSet().size();
 	}
 
 	private void executeTransactionLogic() {

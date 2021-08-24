@@ -45,6 +45,9 @@ public class TPartCacheMgr implements RemoteRecordReceiver {
 
 	private final Object anchors[] = new Object[1009];
 	private final long time_interval_anchors[] = new long[1009];
+	
+	// MODIFIED: 
+	private Set<PrimaryKey> writeBacks;
 
 	public TPartCacheMgr() {
 		for (int i = 0; i < anchors.length; ++i) {
@@ -54,27 +57,28 @@ public class TPartCacheMgr implements RemoteRecordReceiver {
 		recordCache = new ConcurrentHashMap<PrimaryKey, CachedRecord>(FusionTable.EXPECTED_MAX_SIZE + 1000);
 		exchange = new ConcurrentHashMap<CachedEntryKey, CachedRecord>(FusionTable.EXPECTED_MAX_SIZE + 1000);
 		timeIntervalMap = new ConcurrentHashMap<CachedEntryKey, Long>();
-
-		// new PeriodicalJob(5000, 600000, new Runnable() {
-		// @Override
-		// public void run() {
-		// long time = System.currentTimeMillis() - Elasql.START_TIME_MS;
-		// time /= 1000;
-		// System.out.println(String.format("Time: %d seconds, Cache Size: %d, Exchange
-		// Size: %d",
-		// time, recordCache.size(), exchange.size()));
-		// }
-		// }).start();
-
-		// new PeriodicalJob(60_000, 800_000, new Runnable() {
-		// @Override
-		// public void run() {
-		// long time = System.currentTimeMillis() - Elasql.START_TIME_MS;
-		// time /= 1000;
-		// System.out.println(String.format("Time: %d seconds, suggest to GC.", time));
-		// System.gc();
-		// }
-		// }).start();
+		// MODIFIED: Tom
+		writeBacks = new HashSet<PrimaryKey>();
+		
+//		new PeriodicalJob(5000, 600000, new Runnable() {
+//			@Override
+//			public void run() {
+//				long time = System.currentTimeMillis() - Elasql.START_TIME_MS;
+//				time /= 1000;
+//				System.out.println(String.format("Time: %d seconds, Cache Size: %d, Exchange Size: %d",
+//						time, recordCache.size(), exchange.size()));
+//			}
+//		}).start();
+		
+//		new PeriodicalJob(60_000, 800_000, new Runnable() {
+//			@Override
+//			public void run() {
+//				long time = System.currentTimeMillis() - Elasql.START_TIME_MS;
+//				time /= 1000;
+//				System.out.println(String.format("Time: %d seconds, suggest to GC.", time));
+//				System.gc();
+//			}
+//		}).start();
 	}
 
 	private Object prepareAnchor(Object o) {
@@ -275,9 +279,10 @@ public class TPartCacheMgr implements RemoteRecordReceiver {
 		else
 			// If it was not in the cache, write-back to the local storage
 			writeToVanillaCore(key, rec, tx);
-
-		// localCcMgr.afterWriteback(key, tx.getTransactionNumber());
-		// lockTable.release(key, tx.getTransactionNumber(), LockType.X_LOCK);
+			
+		
+//		localCcMgr.afterWriteback(key, tx.getTransactionNumber());
+//		lockTable.release(key, tx.getTransactionNumber(), LockType.X_LOCK);
 	}
 
 	// This is also a type of writeback
@@ -292,9 +297,11 @@ public class TPartCacheMgr implements RemoteRecordReceiver {
 		// Force insert to local storage
 		rec.setNewInserted();
 		VanillaCoreCrud.insert(key, rec, tx);
-
-		// localCcMgr.afterWriteback(key, tx.getTransactionNumber());
-		// lockTable.release(key, tx.getTransactionNumber(), LockType.X_LOCK);
+		// MODIFIED: Tom
+		// writeBacks.add(key);
+		
+//		localCcMgr.afterWriteback(key, tx.getTransactionNumber());
+//		lockTable.release(key, tx.getTransactionNumber(), LockType.X_LOCK);
 	}
 
 	// public void registerSinkReading(RecordKey key, long txNum) {
@@ -308,11 +315,20 @@ public class TPartCacheMgr implements RemoteRecordReceiver {
 	// }
 
 	private void writeToVanillaCore(PrimaryKey key, CachedRecord rec, Transaction tx) {
-		if (rec.isDeleted())
+		if (rec.isDeleted()) {
 			VanillaCoreCrud.delete(key, tx);
-		else if (rec.isNewInserted())
+			// MODIFIED: Tom
+			// writeBacks.add(key);
+		}
+		else if (rec.isNewInserted()) {
 			VanillaCoreCrud.insert(key, rec, tx);
+			// MODIFIED: Tom
+			// writeBacks.add(key);
+		}
+			
 		else if (rec.isDirty()) {
+			// MODIFIED: Tom
+			// writeBacks.add(key);
 			if (!VanillaCoreCrud.update(key, rec, tx)) {
 				// XXX: We use this to solve a migration problem
 				// If a hot record was on other machine and belonged to another partition (not
@@ -331,4 +347,12 @@ public class TPartCacheMgr implements RemoteRecordReceiver {
 			}
 		}
 	}
+	// MODIFIED: Tom
+	public Set<PrimaryKey> getWriteBacks(){
+		return writeBacks;
+	}
+	// MODIFIED: Tom
+	// public void clearWriteBacks() {
+	// 	writeBacks.clear();
+	// }
 }

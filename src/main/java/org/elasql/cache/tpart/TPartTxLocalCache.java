@@ -1,8 +1,10 @@
 package org.elasql.cache.tpart;
 
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.HashSet;
 import java.util.Set;
 
 import org.elasql.cache.CachedRecord;
@@ -20,12 +22,19 @@ public class TPartTxLocalCache {
 	private TPartCacheMgr cacheMgr;
 	private Map<PrimaryKey, CachedRecord> recordCache = new HashMap<PrimaryKey, CachedRecord>();
 	private long localStorageId;
+	// MODIFIED:
+	// CachedNumber of {Read, Update, Insert, Delete}
+	private int[] cachedNum = {0, 0, 0, 0};
+	private Set<PrimaryKey> cachedWriteKeys = new HashSet<PrimaryKey>();
+	private Set<PrimaryKey> writeBacks;
 
 	public TPartTxLocalCache(Transaction tx) {
 		this.tx = tx;
 		this.txNum = tx.getTransactionNumber();
 		this.cacheMgr = (TPartCacheMgr) Elasql.remoteRecReceiver();
-		this.localStorageId = TPartCacheMgr.toSinkId(Elasql.serverId());
+		this.localStorageId = TPartCacheMgr.toSinkId(Elasql.serverId());  
+		// MODIFIED: Tom
+		this.writeBacks = new HashSet<PrimaryKey>();
 	}
 
 	/**
@@ -129,6 +138,7 @@ public class TPartTxLocalCache {
 			Timer.getLocalTimer().stopComponentTimer("Wait Time For Prev Txn On Slave");
 
 		recordCache.put(key, rec);
+		cachedNum[0]++;
 		
 		return rec;
 	}
@@ -136,22 +146,31 @@ public class TPartTxLocalCache {
 	public void update(PrimaryKey key, CachedRecord rec) {
 		rec.setSrcTxNum(txNum);
 		recordCache.put(key, rec);
+		cachedWriteKeys.add(key);
+		cachedNum[1]++;
 	}
 
 	public void insert(PrimaryKey key, Map<String, Constant> fldVals) {
 		CachedRecord rec = CachedRecord.newRecordForInsertion(key, fldVals);
 		rec.setSrcTxNum(tx.getTransactionNumber());
 		recordCache.put(key, rec);
+		cachedWriteKeys.add(key);
+		cachedNum[2]++;
 	}
 
 	public void delete(PrimaryKey key) {
 		CachedRecord dummyRec = CachedRecord.newRecordForDeletion(key);
 		dummyRec.setSrcTxNum(tx.getTransactionNumber());
 		recordCache.put(key, dummyRec);
+		cachedNum[3]++;
 	}
 
 	public void flush(SunkPlan plan, List<CachedEntryKey> cachedEntrySet) {
 //		Timer timer = Timer.getLocalTimer();
+		
+		//Clear the record writeBacks of last flush.
+		// MODIFIED: 
+		// clearWriteBacks();
 		
 		// Pass to the transactions
 //		timer.startComponentTimer("Pass to next Tx");
@@ -182,6 +201,8 @@ public class TPartTxLocalCache {
 			// For migration
 			if (plan.getStorageInsertions().contains(key)) {
 				cacheMgr.insertToLocalStorage(key, rec, tx);
+				// MODIFIED: 
+				writeBacks.add(key);
 				continue;
 			}
 
@@ -189,10 +210,13 @@ public class TPartTxLocalCache {
 			// it might be pushed from the same transaction on the other
 			// machine.
 			// Migrated data need to insert
-			if (plan.getCacheInsertions().contains(key))
+			if (plan.getCacheInsertions().contains(key)){
 				cacheMgr.insertToCache(key, rec, txNum);
-			else
+			}else{
 				cacheMgr.writeBack(key, rec, tx);
+				// MODIFIED: 
+				writeBacks.add(key);
+			}
 		}
 //		timer.stopComponentTimer("Writeback");
 		
@@ -201,5 +225,33 @@ public class TPartTxLocalCache {
 		for (PrimaryKey key : plan.getCacheDeletions())
 			cacheMgr.deleteFromCache(key, txNum);
 //		timer.stopComponentTimer("Delete cached records");
+	}
+	// MODIFIED:
+	public int getCachedReadNum() {
+		return cachedNum[0];
+	}
+	// MODIFIED:
+	public int getCachedUpdateNum() {
+		return cachedNum[1];
+	}
+	// MODIFIED:
+	public int getCachedInsertNum() {
+		return cachedNum[2];
+	}
+	// MODIFIED:
+	public int getCachedDeleteNum() {
+		return cachedNum[3];
+	}
+	// MODIFIED: Tom
+	public Set<PrimaryKey> getCachedWriteKeys(){
+		return cachedWriteKeys;
+	}
+	// MODIFIED: Tom
+	public Set<PrimaryKey> getWriteBacks(){
+		return writeBacks;
+	}
+	// MODIFIED:
+	public void clearWriteBacks() {
+		writeBacks.clear();
 	}
 }

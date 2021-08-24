@@ -19,13 +19,6 @@ import org.elasql.util.ElasqlProperties;
 
 public class TransactionGraph {
     private TransactionGraphQueue graphQueue = new TransactionGraphQueue();
-
-	// private Set<Long> checkPreviousWaitingTxns(PrimaryKey key, Boolean isReadOnly) {
-	// 	if (key != null)
-	// 		return graphQueue.checkPreviousWaitingTxns(key, isReadOnly);
-	// 	return new HashSet<Long>();
-	// }
-
     /**
      * 
      * @param keys
@@ -168,12 +161,12 @@ public class TransactionGraph {
         try{
             try (BufferedWriter writer = createOutputFile(fileName)) {
                 // write header
-                StringBuilder headerSb = new StringBuilder();
-                headerSb.append("TargetTransaction");
-                headerSb.append(",");
-                headerSb.append("DependencyTransactions");
-                headerSb.append("\n");
-                writer.append(headerSb.toString());
+                // StringBuilder headerSb = new StringBuilder();
+                // headerSb.append("TargetTransaction");
+                // headerSb.append(",");
+                // headerSb.append("DependencyTransactions");
+                // headerSb.append("\n");
+                // writer.append(headerSb.toString());
                 sortByTxnNum(seqTxns);
                 // write record
                 for (Node Txn : seqTxns) {
