@@ -175,19 +175,6 @@ public class Elasql extends VanillaDb {
 		initDdLogMgr();
 		if (migraComsFactory != null)
 			migraMgr = migraComsFactory.newMigrationMgr();
-
-		// MODIFIED:
-		if (connMgr != null) {
-			if (!connMgr.startSync) {
-				// System.out.println("Start Sync");
-				// for (int i = 0; i < VanillaCommServer.getServerCount() - 1; i++) {
-				// 	if (i != serverId())
-				// 		connMgr.sendServerTimeSync(i, System.nanoTime() / 1000, true);
-				// }
-			}
-		} else {
-			// System.out.printf("A ConnectionMgr request failed, ServerID: %d \n", serverId());
-		}
 	}
 
 	// ================

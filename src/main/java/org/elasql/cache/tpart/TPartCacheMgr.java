@@ -162,9 +162,9 @@ public class TPartCacheMgr implements RemoteRecordReceiver {
 		// MODIFIED: Record transmit interval
 		long transmitInterval;
 		if(Elasql.connectionMgr().serverLatency.get(srcNode) != null)
-			transmitInterval = (System.nanoTime() / 1000) - TimeStamp - Elasql.connectionMgr().serverLatency.get(srcNode);
+			transmitInterval = (System.nanoTime()) - TimeStamp - Elasql.connectionMgr().serverLatency.get(srcNode);
 		else
-			transmitInterval = (System.nanoTime() / 1000) - TimeStamp;
+			transmitInterval = (System.nanoTime()) - TimeStamp;
 
 		CachedEntryKey k = new CachedEntryKey(key, src, dest);
 		synchronized (prepareAnchor(k)) {
@@ -172,7 +172,7 @@ public class TPartCacheMgr implements RemoteRecordReceiver {
 			timeIntervalMap.put(k, transmitInterval);
 			// TO DEAL: Keep up the function or not.
 			setTimerIntervalAnchor(k, transmitInterval);
-			// System.out.printf("[%d] A Time_Interval added to map: Interval = %d\n", (System.nanoTime() / 1000), transmitInterval);
+			// System.out.printf("[%d] A Time_Interval added to map: Interval = %d\n", (System.nanoTime()), transmitInterval);
 			exchange.put(k, rec);
 			prepareAnchor(k).notifyAll();
 		}

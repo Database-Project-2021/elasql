@@ -25,6 +25,7 @@ import org.vanilladb.core.storage.file.BlockId;
 import org.vanilladb.core.storage.record.RecordId;
 import org.vanilladb.core.storage.tx.Transaction;
 import org.vanilladb.core.storage.tx.concurrency.ConcurrencyMgr;
+import org.vanilladb.core.util.Timer;
 
 public class ConservativeOrderedCcMgr extends ConcurrencyMgr {
 	protected static ConservativeOrderedLockTable lockTbl = new ConservativeOrderedLockTable();
@@ -121,8 +122,10 @@ public class ConservativeOrderedCcMgr extends ConcurrencyMgr {
 	
 	@Override
 	public void onTxCommit(Transaction tx) {
+		Timer.getLocalTimer().startComponentTimer("Release Lock");
 		releaseIndexLocks();
 		releaseLocks();
+		Timer.getLocalTimer().stopComponentTimer("Release Lock");
 	}
 	
 	@Override

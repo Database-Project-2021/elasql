@@ -70,21 +70,20 @@ public class TPartStoredProcedureTask
 		// Initialize a thread-local timer
 		Timer timer = Timer.getLocalTimer();
 		timer.reset();
-		timer.startExecution();
 		// MODIFIED:
-		timer.recordTime("Txn Start TimeStamp", System.nanoTime() / 1000);
+		timer.recordCurrentTime("Txn Start TimeStamp");
 
 		// MODIFIED: Cannot be fixed by merge conflict
-		// timer.setStartExecutionTime(txStartTime);
-		// timer.startComponentTimer("Generate plan", sinkStartTime);
-		// timer.stopComponentTimer("Generate plan", sinkStopTime);
-		// timer.startComponentTimer("Init thread", threadInitStartTime);
-		// timer.stopComponentTimer("Init thread");
-//		timer.startExecution();
+		timer.setStartExecutionTime(txStartTime);
+		timer.startComponentTimer("Generate plan", sinkStartTime);
+		timer.stopComponentTimer("Generate plan", sinkStopTime);
+		timer.startComponentTimer("Init thread", threadInitStartTime);
+		timer.stopComponentTimer("Init thread");
+		// timer.startExecution();
 
 		// Initialize a thread-local feature collector
 		FeatureCollector collector = FeatureCollector.getLocalFeatureCollector();
-		collector.setFeatureValue(FeatureCollector.keys[0], (txStartTime - firstTxStartTime)/1000);
+		collector.setFeatureValue(FeatureCollector.keys[0], (txStartTime - firstTxStartTime));
 		
 		// OU1: Generating Execution Plan
 		collector.setFeatureValue(FeatureCollector.keys[1], tsp.getReadSet().size());
@@ -135,11 +134,9 @@ public class TPartStoredProcedureTask
 		// Stop the timer for the whole execution
 		timer.stopExecution();
 		// MODIFIED:
-		timer.recordTime("Txn End TimeStamp", System.nanoTime() / 1000);
+		timer.recordCurrentTime("Txn End TimeStamp");
 		// MODIFIED:
-		Elasql.getTransactionGraph().addNode(txNum, timer.getExecutionTime(), System.nanoTime() / 1000,
-				tsp.getDependenTxns());
-
+		Elasql.getTransactionGraph().addNode(txNum, timer.getExecutionTime(), System.nanoTime(), tsp.getDependenTxns());
 		// Record the timer result
 		TransactionStatisticsRecorder.recordResult(txNum, timer);
 	}

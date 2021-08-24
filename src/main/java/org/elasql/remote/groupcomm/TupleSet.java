@@ -59,7 +59,7 @@ public class TupleSet implements Serializable {
 		// Clone the record to prevent concurrent access from communication threads
 		rec = new CachedRecord(rec);
 		// MODIFIED: Pass current time stamp to destination machine.
-		tuples.add(new Tuple(key, srcTxNum, destTxNum, rec, System.nanoTime() / 1000));
+		tuples.add(new Tuple(key, srcTxNum, destTxNum, rec, System.nanoTime()));
 	}
 
 	public int sinkId() {

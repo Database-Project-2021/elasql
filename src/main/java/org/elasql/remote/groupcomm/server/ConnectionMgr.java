@@ -140,10 +140,10 @@ public class ConnectionMgr implements VanillaCommServerListener {
 			// System.out.printf("TimeSync Recv. From %d to %d \n", sr.getServerID(), Elasql.serverId());
 			// Send other server's request back with current timestamp
 			if (sr.isRequest()) {
-				// sendServerTimeSync(ts.getServerID(), System.nanoTime() / 1000, false);
+				// sendServerTimeSync(ts.getServerID(), System.nanoTime(), false);
 				try {
 					SyncRequest temp = new SyncRequest(sr.getTimeSync().getServerID(),
-							new TimeSync(System.nanoTime() / 1000, Elasql.serverId(), false));
+							new TimeSync(System.nanoTime(), Elasql.serverId(), false));
 					timeSyncQueue.put(temp);
 				} catch (InterruptedException e) {
 					e.printStackTrace();
@@ -153,7 +153,7 @@ public class ConnectionMgr implements VanillaCommServerListener {
 				// MODIFIED:
 				// Calculate latency, then push another request into timeSyncQueue
 				long recvSync = sr.getTimeSync().getTime();
-				long time_interval = (System.nanoTime() / 1000 - sentSync.get(sr.getTimeSync().getServerID())) / 2;
+				long time_interval = (System.nanoTime() - sentSync.get(sr.getTimeSync().getServerID())) / 2;
 				long latency = sentSync.get(sr.getTimeSync().getServerID()) + time_interval - recvSync;
 				// System.out.printf("A time_interval Value: %d, from Server%d to Server%d\n", time_interval, Elasql.serverId(), destID);
 				// System.out.printf("A Server Latency Value: %d, from Server%d to Server%d\n", latency, Elasql.serverId(), destID);
@@ -172,11 +172,11 @@ public class ConnectionMgr implements VanillaCommServerListener {
 					serverLatency.put(sr.getTimeSync().getServerID(), avgLatency);
 				}
 
-				sentSync.put(sr.getTimeSync().getServerID(), System.nanoTime() / 1000);
+				sentSync.put(sr.getTimeSync().getServerID(), System.nanoTime());
 				// sendServerTimeSync(ts.getServerID(), sentSync.get(ts.getServerID()), true);
 				try {
 					SyncRequest temp = new SyncRequest(sr.getTimeSync().getServerID(),
-							new TimeSync(System.nanoTime() / 1000, Elasql.serverId(), true));
+							new TimeSync(System.nanoTime(), Elasql.serverId(), true));
 					timeSyncQueue.put(temp);
 				} catch (InterruptedException e) {
 					e.printStackTrace();
@@ -226,9 +226,9 @@ public class ConnectionMgr implements VanillaCommServerListener {
 	private void createTimeSyncSender() {
 		try {
 			for (int i = 0; i < VanillaCommServer.getServerCount() - 1; i++) {
-				SyncRequest temp = new SyncRequest(i, new TimeSync(System.nanoTime() / 1000, Elasql.serverId(), true));
+				SyncRequest temp = new SyncRequest(i, new TimeSync(System.nanoTime(), Elasql.serverId(), true));
 				timeSyncQueue.put(temp);
-				sentSync.put(i, System.nanoTime() / 1000);
+				sentSync.put(i, System.nanoTime());
 			}
 		} catch (InterruptedException e) {
 			e.printStackTrace();

@@ -11,7 +11,7 @@ public class TimeSync implements Serializable {
     private boolean request;
     
     public TimeSync() {
-        this.timeStamp = System.nanoTime()/1000;
+        this.timeStamp = System.nanoTime();
         this.nodeId = Elasql.serverId();
         this.request = false;
     }

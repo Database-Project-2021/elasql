@@ -213,9 +213,9 @@ public abstract class TPartStoredProcedure<H extends StoredProcedureParamHelper>
 			// record time of executing tx logic in the function
 			executeTransactionLogic();
 
-			timer.startComponentTimer("tx commit");
+			timer.startComponentTimer("Tx commit");
 			tx.commit();
-			timer.stopComponentTimer("tx commit");
+			timer.stopComponentTimer("Tx commit");
 
 			if (plan.isContainRemotePush())
 				timer.stopComponentTimer("Total Time Remote Read On Slave");

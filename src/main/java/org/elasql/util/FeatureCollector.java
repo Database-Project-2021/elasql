@@ -50,7 +50,7 @@ public class FeatureCollector {
 	// OU8 [12-13]
 	public static String[] keys = {"Start time",  
 		"Num of reads", "Num of writes", 
-		"Num of active txs", "Thread pool size", " CPU utilization", 
+		"Num of active txs", "Thread pool size", "CPU utilization", 
 		"Num of cache read", "Num of cache insert", "Num of cache update", "Num of arithmetic operations", 
 		"Num of write record", "Num of bytes", 
 		"Num of read write record", "Num of log flush bytes", 
