@@ -48,12 +48,14 @@ public class FeatureCollector {
 	// OU6 [6-9]
 	// OU7 [10-11]
 	// OU8 [12-13]
+	// Thread.activeCount [14]
 	public static String[] keys = {"Start time",  
 		"Num of reads", "Num of writes", 
 		"Num of active txs", "Thread pool size", "CPU utilization", 
 		"Num of cache read", "Num of cache insert", "Num of cache update", "Num of arithmetic operations", 
 		"Num of write record", "Num of bytes", 
 		"Num of read write record", "Num of log flush bytes", 
+		"Num of Threads"
 		};
 	
 	// Record features and it's value (may be list)

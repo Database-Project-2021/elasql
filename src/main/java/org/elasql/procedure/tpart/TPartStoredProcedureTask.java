@@ -66,6 +66,7 @@ public class TPartStoredProcedureTask
 		SpResultSet rs = null;
 
 		Thread.currentThread().setName("Tx." + txNum);
+		Thread.currentThread().setPriority(10);
 
 		// Initialize a thread-local timer
 		Timer timer = Timer.getLocalTimer();
@@ -112,6 +113,9 @@ public class TPartStoredProcedureTask
 		// OU7: Write To Storage
 		collector.setFeatureValue(FeatureCollector.keys[10], tsp.getWriteSetSize());
 		collector.setFeatureValue(FeatureCollector.keys[11], tsp.getWriteSetByte());
+
+		// Thread.activeCount
+		collector.setFeatureValue(FeatureCollector.keys[14], Thread.activeCount());
 		
 		// Record the feature result
 		TransactionFeaturesRecorder.recordResult(txNum, collector);
