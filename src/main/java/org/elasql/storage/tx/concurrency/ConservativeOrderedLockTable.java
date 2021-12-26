@@ -135,7 +135,7 @@ public class ConservativeOrderedLockTable {
 					// anchor.wait();
 					profiler.stopComponentProfilerIndic("OU3 - sLock Waiting", indicator);
 
-					waitObj(txNum);
+					waitObj(txNum, obj);
 					lockers = prepareLockers(obj);
 					head = lockers.requestQueue.peek();
 					is_wait_anchor = true;
@@ -197,13 +197,21 @@ public class ConservativeOrderedLockTable {
 					profiler.stopComponentProfilerIndic("OU3 - xLock Overhead", indicator);
 					profiler.startComponentProfilerIndic("OU3 - xLock Waiting", indicator);
 					// anchor.wait();
+					synchronized(head){
+						try{
+							head.wait();
+						} catch (InterruptedException e) {
+							e.printStackTrace();
+							throw new LockAbortException("Interrupted when waiting for lock of head");
+						}
+					}
 					profiler.stopComponentProfilerIndic("OU3 - xLock Waiting", indicator);
 
 					// Object  dummy = new Object();
 					// lockers.requestQueue.add(dummy);
 					// dummy.wait();
 					
-					waitObj(txNum);
+					waitObj(txNum, obj);
 					lockers = prepareLockers(obj);
 					head = lockers.requestQueue.peek();
 					is_wait_anchor = true;
@@ -412,22 +420,34 @@ public class ConservativeOrderedLockTable {
 	}
 
 	private void lockObj(Object obj, Queue<Object> anchorQueue){
-		synchronized(anchorQueue){
-			synchronized(obj){
-				try{
-					obj.wait();
-					anchorQueue.add(obj);
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-					throw new LockAbortException("Interrupted when locking object");
+		System.out.println(obj.toString() + " Locking obj...");
+		synchronized(obj){
+			synchronized(anchorQueue){
+				for(Object item: anchorQueue){
+					if(item.equals(obj)){
+						return;
+					}
 				}
+
+				System.out.println(obj.toString() + " Entering queue...");
+				anchorQueue.add(obj);
+				System.out.println(obj.toString() + " Entered queue");
+			}
+
+			try{
+				System.out.println(obj.toString() + " Waiting...");
+				obj.wait();
+				System.out.println(obj.toString() + " Exited wait");
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+				throw new LockAbortException("Interrupted when locking object");
 			}
 		}
 	}
 
-	private void waitObj(Object obj){
+	private void waitObj(Object txNum, Object obj){
 		Queue<Object> anchorQueue = getQueue(obj);
-		lockObj(obj, anchorQueue);
+		lockObj(txNum, anchorQueue);
 	}
 
 	// private void releaseQueue(Queue<Object> anchorQueue){
@@ -441,11 +461,13 @@ public class ConservativeOrderedLockTable {
 		Queue<Object> anchorQueue = getQueue(obj);
 		synchronized(anchorQueue){
 			Object wakeupObj = anchorQueue.poll();
+			System.out.println(wakeupObj.toString() + " Waking up");
 
 			if(wakeupObj != null){
 				synchronized(wakeupObj){
 					// try{
 					wakeupObj.notifyAll();
+					System.out.println(wakeupObj.toString() + " Notified");
 					// } catch (InterruptedException e) {
 					// 	e.printStackTrace();
 					// 	throw new LockAbortException("Interrupted when locking object");
