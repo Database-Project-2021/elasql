@@ -42,7 +42,7 @@ public class ConservativeOrderedLockTable {
 		List<Long> sLockers, ixLockers, isLockers;
 		// only one tx can hold xLock(sixLock) on single item
 		long sixLocker, xLocker;
-		Queue<Long> requestQueue;
+		LinkedList<Long> requestQueue;
 
 		Lockers() {
 			sLockers = new LinkedList<Long>();
@@ -133,12 +133,13 @@ public class ConservativeOrderedLockTable {
 			// logInfo("S - Acquiring anchor...");
 			profiler.stopComponentProfilerIndic("OU3 - sAnchor Waiting", indicator);
 			Lockers lockers = prepareLockers(obj);
-			// check if it have already held the lock
-			if (hasSLock(lockers, txNum)) {
-				lockers.requestQueue.remove(txNum);
-				return;
-			}
 
+			// synchronized(lockers.requestQueue){
+				// check if it have already held the lock
+				if (hasSLock(lockers, txNum)) {
+					lockers.requestQueue.remove(txNum);
+					return;
+				}
 			// try {
 				Long head = lockers.requestQueue.peek();
 				while (!sLockable(lockers, txNum) || (head != null && head.longValue() != txNum)) {
@@ -149,7 +150,8 @@ public class ConservativeOrderedLockTable {
 					
 					// logInfo("S - Waiting Obj...");
 					System.out.println("Txn " + txNum + " S - Waiting Obj...");
-					waitObj(new Long(txNum), obj);
+					// waitObj(txNum, obj);
+					waitRequestQueue(txNum, lockers.requestQueue);
 					// logInfo("S - Finished waiting Obj");
 					System.out.println("Txn " + txNum + " S - Finished waiting Obj");
 
@@ -157,7 +159,7 @@ public class ConservativeOrderedLockTable {
 					head = lockers.requestQueue.peek();
 					is_wait_anchor = true;
 				}
-
+			
 				if(!is_wait_anchor){
 					profiler.stopComponentProfilerIndic("OU3 - sLock Overhead", indicator);
 					profiler.startComponentProfilerIndic("OU3 - sLock Waiting", indicator);
@@ -174,12 +176,14 @@ public class ConservativeOrderedLockTable {
 				
 				// logInfo("S - Release Obj...");
 				System.out.println("Txn " + txNum + " S - Release Obj...");
-				releaseObj(txNum);
+				// releaseObj(txNum, obj);
+				releaseRequestQueue(txNum, lockers.requestQueue);
 				// logInfo("S - Released Obj...");
 				System.out.println("Txn " + txNum + " S - Released Obj...");
 			// } catch (InterruptedException e) {
 			// 	e.printStackTrace();
 			// 	throw new LockAbortException("Interrupted when waitting for lock");
+			// }
 			// }
 		}
 		System.out.println("Txn " + txNum + " S - Acquired Lock");
@@ -213,11 +217,12 @@ public class ConservativeOrderedLockTable {
 			// logInfo("X - Acquiring anchor...");
 			profiler.stopComponentProfilerIndic("OU3 - xAnchor Waiting", indicator);
 			Lockers lockers = prepareLockers(obj);
-
-			if (hasXLock(lockers, txNum)) {
-				lockers.requestQueue.remove(txNum);
-				return;
-			}
+			
+			// synchronized(lockers.requestQueue){
+				if (hasXLock(lockers, txNum)) {
+					lockers.requestQueue.remove(txNum);
+					return;
+				}
 			// try {
 				Long head = lockers.requestQueue.peek();
 				while ((!xLockable(lockers, txNum) || (head != null && head.longValue() != txNum))) {
@@ -236,7 +241,8 @@ public class ConservativeOrderedLockTable {
 					
 					// logInfo("X - Waiting Obj...");
 					System.out.println("Txn " + txNum + " X - Waiting Obj...");
-					waitObj(new Long(txNum), obj);
+					// waitObj(txNum, obj);
+					waitRequestQueue(txNum, lockers.requestQueue);
 					// logInfo("X - Finished waiting Obj");
 					System.out.println("Txn " + txNum + " X - Finished waiting Obj");
 
@@ -252,9 +258,9 @@ public class ConservativeOrderedLockTable {
 				}
 				lockers.requestQueue.poll();
 				lockers.xLocker = txNum;
-				// releaseObj(txNum);
 			// } catch (InterruptedException e) {
 			// 	throw new LockAbortException("Interrupted when waitting for lock");
+			// }
 			// }
 		}
 		System.out.println("Txn " + txNum + " X - Acquired Lock");
@@ -428,7 +434,8 @@ public class ConservativeOrderedLockTable {
 			// There might be someone waiting for the lock
 			anchor.notifyAll();
 			System.out.println("Releasing obj...");
-			releaseObj(txNum);
+			// releaseObj(txNum, obj);
+			// releaseRequestQueue(txNum, lks.requestQueue);
 			System.out.println("Released obj...");
 		}
 	}
@@ -444,6 +451,38 @@ public class ConservativeOrderedLockTable {
 		int code = obj.hashCode();
 		code = Math.abs(code); // avoid negative value
 		return anchors[code % anchors.length];
+	}
+
+	private void waitRequestQueue(long txNum, LinkedList<Long> requestQueue){
+		if(requestQueue.contains(txNum)){
+			int idx = requestQueue.indexOf(txNum);
+			Long obj = requestQueue.get(idx);
+			synchronized(obj){
+				try{
+					obj.wait();
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+					throw new LockAbortException("Interrupted when locking requestQueue");
+				}
+			}
+		}else{
+			System.out.println("requestQueue is empty, Txn " + txNum + " isn't inside the queue");
+		}
+	}
+
+	private void releaseRequestQueue(long txNum, LinkedList<Long> requestQueue){
+		// synchronized(requestQueue){
+			// if(requestQueue.contains(txNum)){
+				// int idx = requestQueue.indexOf(txNum);
+				// Long obj = requestQueue.get(idx);
+				Long obj = requestQueue.peek();
+				if(obj != null){
+					obj.notifyAll();
+				}else{
+					System.out.println("requestQueue is empty, cannot notifyAll()");
+				}
+			// }
+		// }
 	}
 
 	private Queue<Object> getQueue(Object obj) {
@@ -462,9 +501,9 @@ public class ConservativeOrderedLockTable {
 					}
 				}
 
-				System.out.println(obj.toString() + " Entering queue...");
+				System.out.println(obj.toString() + " - " + obj.toString() + " - " + " Entering queue...");
 				anchorQueue.add(obj);
-				System.out.println(obj.toString() + " Entered queue");
+				System.out.println(obj.toString() + " - " + obj.toString() + " - " + " Entered queue | size: " + anchorQueue.size());
 			}
 
 			try{
@@ -490,11 +529,11 @@ public class ConservativeOrderedLockTable {
 	// 	}
 	// }
 
-	private void releaseObj(Object obj){
+	private void releaseObj(Long txNum, Object obj){
 		Queue<Object> anchorQueue = getQueue(obj);
 		synchronized(anchorQueue){
 			Object wakeupObj = anchorQueue.poll();
-			System.out.println("Queue size: " + anchorQueue.size());
+			System.out.println("Txn " + txNum + " - " + obj.toString() + " - " + " Queue size: " + anchorQueue.size());
 
 			if(wakeupObj != null){
 				System.out.println(wakeupObj.toString() + " Waking up");
@@ -529,14 +568,16 @@ public class ConservativeOrderedLockTable {
 			if (lks.xLocker == txNum) {
 				lks.xLocker = -1;
 				anchor.notifyAll();
-				releaseObj(txNum);
+				// releaseObj(txNum, obj);
+				releaseRequestQueue(txNum, lks.requestQueue);
 			}
 			return;
 		case SIX_LOCK:
 			if (lks.sixLocker == txNum) {
 				lks.sixLocker = -1;
 				anchor.notifyAll();
-				releaseObj(txNum);
+				// releaseObj(txNum, obj);
+				releaseRequestQueue(txNum, lks.requestQueue);
 			}
 			return;
 		case S_LOCK:
@@ -545,7 +586,8 @@ public class ConservativeOrderedLockTable {
 				sl.remove((Long) txNum);
 				if (sl.isEmpty())
 					anchor.notifyAll();
-					releaseObj(txNum);
+					// releaseObj(txNum, obj);
+					releaseRequestQueue(txNum, lks.requestQueue);
 			}
 			return;
 		case IS_LOCK:
@@ -554,7 +596,8 @@ public class ConservativeOrderedLockTable {
 				isl.remove((Long) txNum);
 				if (isl.isEmpty())
 					anchor.notifyAll();
-					releaseObj(txNum);
+					// releaseObj(txNum, obj);
+					releaseRequestQueue(txNum, lks.requestQueue);
 			}
 			return;
 		case IX_LOCK:
@@ -563,7 +606,8 @@ public class ConservativeOrderedLockTable {
 				ixl.remove((Long) txNum);
 				if (ixl.isEmpty())
 					anchor.notifyAll();
-					releaseObj(txNum);
+					// releaseObj(txNum, obj);
+					releaseRequestQueue(txNum, lks.requestQueue);
 			}
 			return;
 		default:
