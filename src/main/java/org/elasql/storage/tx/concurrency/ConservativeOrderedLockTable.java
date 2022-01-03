@@ -240,7 +240,11 @@ public class ConservativeOrderedLockTable {
 					profiler.stopComponentProfilerIndic("OU3 - xLock Waiting", indicator);
 					
 					// logInfo("X - Waiting Obj...");
-					System.out.println("Txn " + txNum + " X - Waiting Obj...");
+					// System.out.println("Txn " + txNum + " X - Waiting Obj...");
+					
+					String is_head_txNum = "";
+					if(head != null){is_head_txNum = head.longValue() != txNum? "True":"False";}
+					System.out.println("Txn " + txNum + " X - Waiting Obj... | " + "xLockable: " +  (xLockable(lockers, txNum)? "True":"False") + " | head null: " + (head != null? "True":"False") + " | head txNum: " + is_head_txNum);
 					// waitObj(txNum, obj);
 					waitRequestQueue(txNum, lockers.requestQueue);
 					// logInfo("X - Finished waiting Obj");
@@ -454,19 +458,21 @@ public class ConservativeOrderedLockTable {
 	}
 
 	private void waitRequestQueue(long txNum, LinkedList<Long> requestQueue){
+		System.out.println("requestQueue size: " + requestQueue.size() + " while waiting for the lock.");
 		if(requestQueue.contains(txNum)){
 			int idx = requestQueue.indexOf(txNum);
 			Long obj = requestQueue.get(idx);
 			synchronized(obj){
 				try{
-					obj.wait();
+					System.out.println("Waiting on Txn " + obj + " of requestQueue");
+					obj.wait(5);
 				} catch (InterruptedException e) {
 					e.printStackTrace();
 					throw new LockAbortException("Interrupted when locking requestQueue");
 				}
 			}
 		}else{
-			System.out.println("requestQueue is empty, Txn " + txNum + " isn't inside the queue");
+			System.out.println("Txn " + txNum + " isn't inside the queue");
 		}
 	}
 
@@ -477,10 +483,24 @@ public class ConservativeOrderedLockTable {
 				// Long obj = requestQueue.get(idx);
 				Long obj = requestQueue.peek();
 				if(obj != null){
-					obj.notifyAll();
+					synchronized(obj){
+						obj.notifyAll();
+						System.out.println("notifyAll of Txn " + obj + " inside requestQueue | requestQueue size: " + requestQueue.size());
+					}
 				}else{
 					System.out.println("requestQueue is empty, cannot notifyAll()");
 				}
+
+				// for(int i = 0; i < 1000; i++){
+				// 	obj = requestQueue.peek();
+				// 	if(obj != null){
+				// 		synchronized(obj){
+				// 			obj.notifyAll();
+				// 			System.out.println("notifyAll of Txn " + obj + " inside requestQueue | requestQueue size: " + requestQueue.size());
+				// 		}
+				// 		break;
+				// 	}
+				// }				
 			// }
 		// }
 	}
@@ -569,16 +589,16 @@ public class ConservativeOrderedLockTable {
 				lks.xLocker = -1;
 				anchor.notifyAll();
 				// releaseObj(txNum, obj);
-				releaseRequestQueue(txNum, lks.requestQueue);
 			}
+			releaseRequestQueue(txNum, lks.requestQueue);
 			return;
 		case SIX_LOCK:
 			if (lks.sixLocker == txNum) {
 				lks.sixLocker = -1;
 				anchor.notifyAll();
 				// releaseObj(txNum, obj);
-				releaseRequestQueue(txNum, lks.requestQueue);
 			}
+			releaseRequestQueue(txNum, lks.requestQueue);
 			return;
 		case S_LOCK:
 			List<Long> sl = lks.sLockers;
@@ -587,8 +607,8 @@ public class ConservativeOrderedLockTable {
 				if (sl.isEmpty())
 					anchor.notifyAll();
 					// releaseObj(txNum, obj);
-					releaseRequestQueue(txNum, lks.requestQueue);
 			}
+			releaseRequestQueue(txNum, lks.requestQueue);
 			return;
 		case IS_LOCK:
 			List<Long> isl = lks.isLockers;
@@ -597,8 +617,8 @@ public class ConservativeOrderedLockTable {
 				if (isl.isEmpty())
 					anchor.notifyAll();
 					// releaseObj(txNum, obj);
-					releaseRequestQueue(txNum, lks.requestQueue);
 			}
+			releaseRequestQueue(txNum, lks.requestQueue);
 			return;
 		case IX_LOCK:
 			List<Long> ixl = lks.ixLockers;
@@ -607,8 +627,8 @@ public class ConservativeOrderedLockTable {
 				if (ixl.isEmpty())
 					anchor.notifyAll();
 					// releaseObj(txNum, obj);
-					releaseRequestQueue(txNum, lks.requestQueue);
 			}
+			releaseRequestQueue(txNum, lks.requestQueue);
 			return;
 		default:
 			throw new IllegalArgumentException();
