@@ -117,6 +117,8 @@ public class ConservativeOrderedCcMgr extends ConcurrencyMgr {
 		for (Object obj : readObjs)
 			if (!writeObjs.contains(obj))
 				lockTbl.sLock(obj, txNum);
+
+		System.out.println("Txn " + txNum + " got all required locks.");
 	}
 	
 	@Override
@@ -284,5 +286,7 @@ public class ConservativeOrderedCcMgr extends ConcurrencyMgr {
 		
 		readObjs.clear();
 		writeObjs.clear();
+
+		System.out.println("Txn " + txNum + " released all locks.");
 	}
 }

@@ -106,6 +106,13 @@ public class ConservativeOrderedLockTable {
 		}
 	}
 
+	private boolean sLockCondition(Lockers lockers, Long txNum){
+		synchronized(lockers){
+			Long head = lockers.requestQueue.peek();
+			return (!sLockable(lockers, txNum) || (head != null && head.longValue() != txNum));	
+		}
+	}
+
 	/**
 	 * Grants an slock on the specified item. If any conflict lock exists when
 	 * the method is called, then the calling thread will be placed on a wait
@@ -124,6 +131,8 @@ public class ConservativeOrderedLockTable {
 		TransactionProfiler profiler = TransactionProfiler.getLocalProfiler();
 		int indicator = 3;
 		boolean is_wait_anchor = false;
+		Lockers lockers = null;
+		// Long head = null;
 		profiler.startComponentProfilerIndic("OU3 - sLock Overhead", indicator);
 		Object anchor = getAnchor(obj);
 
@@ -132,32 +141,41 @@ public class ConservativeOrderedLockTable {
 			System.out.println("Txn " + txNum + " S - Acquired anchor");
 			// logInfo("S - Acquiring anchor...");
 			profiler.stopComponentProfilerIndic("OU3 - sAnchor Waiting", indicator);
-			Lockers lockers = prepareLockers(obj);
-
-			// synchronized(lockers.requestQueue){
+			lockers = prepareLockers(obj);
+		}
+			synchronized(lockers){
 				// check if it have already held the lock
 				if (hasSLock(lockers, txNum)) {
 					lockers.requestQueue.remove(txNum);
+					// syncRemove(lockers.requestQueue, txNum);
 					return;
 				}
+				// head = lockers.requestQueue.peek();
+			}				
 			// try {
-				Long head = lockers.requestQueue.peek();
-				while (!sLockable(lockers, txNum) || (head != null && head.longValue() != txNum)) {
+				
+				// Long head = syncPeek(lockers.requestQueue);
+				// while (!sLockable(lockers, txNum) || (head != null && head.longValue() != txNum)) {
+				while(sLockCondition(lockers, txNum)){
 					profiler.stopComponentProfilerIndic("OU3 - sLock Overhead", indicator);
 					profiler.startComponentProfilerIndic("OU3 - sLock Waiting", indicator);
 					// anchor.wait();
 					profiler.stopComponentProfilerIndic("OU3 - sLock Waiting", indicator);
 					
-					String is_head_txNum = "";
-					if(head != null){is_head_txNum = head.longValue() != txNum? "True":"False";}
-					System.out.println("Txn " + txNum + " S - Waiting Obj... | " + "sLockable: " +  (sLockable(lockers, txNum)? "True":"False") + " | head null: " + (head != null? "True":"False") + " | head txNum: " + is_head_txNum);
+					// String is_head_txNum = "";
+					// if(head != null){is_head_txNum = head.longValue() != txNum? "True":"False";}
+					// System.out.println("Txn " + txNum + " S - Waiting Obj... | " + "sLockable: " +  (sLockable(lockers, txNum)? "True":"False") + " | head null: " + (head != null? "True":"False") + " | head txNum: " + is_head_txNum + " !sLocked(lks): " + (!sLocked(lockers)? "True":"False") + " isTheOnlySLocker(lks, txNum): " + (isTheOnlySLocker(lockers, txNum)? "True":"False") + 
+					// 				   " - | !xLocked(lks): " + (!xLocked(lockers)? "True":"False") + " | hasXLock(lks, txNum): " + (hasXLock(lockers, txNum)? "True":"False") + " | Blocking: " + lockers.xLocker);
 					// waitObj(txNum, obj);
-					waitRequestQueue(txNum, lockers.requestQueue);
+					waitRequestQueue(txNum, lockers);
 					// logInfo("S - Finished waiting Obj");
 					System.out.println("Txn " + txNum + " S - Finished waiting Obj");
 
 					lockers = prepareLockers(obj);
-					head = lockers.requestQueue.peek();
+					// synchronized(lockers){
+					// 	head = lockers.requestQueue.peek();
+					// }
+					// head = syncPeek(lockers.requestQueue);
 					is_wait_anchor = true;
 				}
 			
@@ -167,27 +185,38 @@ public class ConservativeOrderedLockTable {
 					profiler.stopComponentProfilerIndic("OU3 - sLock Waiting", indicator);
 				}
 				
-				if (!sLockable(lockers, txNum))
+				synchronized(lockers){
+					if (!sLockable(lockers, txNum))
 					throw new LockAbortException();
-				// get the s lock
-				lockers.requestQueue.poll();
-				lockers.sLockers.add(txNum);
-				// Wake up other waiting transactions (on this object) to let
-				anchor.notifyAll();
-				
-				// logInfo("S - Release Obj...");
-				System.out.println("Txn " + txNum + " S - Release Obj...");
-				// releaseObj(txNum, obj);
-				releaseRequestQueue(txNum, lockers.requestQueue);
-				// logInfo("S - Released Obj...");
-				System.out.println("Txn " + txNum + " S - Released Obj...");
+					// get the s lock
+					lockers.requestQueue.poll();
+					// syncPoll(lockers.requestQueue);
+					lockers.sLockers.add(txNum);
+
+					// Wake up other waiting transactions (on this object) to let
+					// anchor.notifyAll();
+
+					// logInfo("S - Release Obj...");
+					System.out.println("Txn " + txNum + " S - Release Obj...");
+					// releaseObj(txNum, obj);
+					releaseRequestQueue(txNum, lockers.requestQueue);
+					// logInfo("S - Released Obj...");
+					System.out.println("Txn " + txNum + " S - Released Obj...");
+				}
 			// } catch (InterruptedException e) {
 			// 	e.printStackTrace();
 			// 	throw new LockAbortException("Interrupted when waitting for lock");
 			// }
 			// }
-		}
+		// }
 		System.out.println("Txn " + txNum + " S - Acquired Lock");
+	}
+
+	private boolean xLockCondition(Lockers lockers, Long txNum){
+		synchronized(lockers){
+			Long head = lockers.requestQueue.peek();
+			return (!xLockable(lockers, txNum) || (head != null && head.longValue() != txNum));
+		}
 	}
 
 	/**
@@ -204,74 +233,32 @@ public class ConservativeOrderedLockTable {
 	 */
 	void xLock(Object obj, long txNum) {
 		System.out.println("Txn " + txNum + " X - Acquiring Lock...");
-		// logInfo("X - Acquiring Lock...");
 		// See the comments in sLock(..) for the explanation of the algorithm
-		TransactionProfiler profiler = TransactionProfiler.getLocalProfiler();
-		int indicator = 3;
-		boolean is_wait_anchor = false;
-		profiler.startComponentProfilerIndic("OU3 - xLock Overhead", indicator);
-		Object anchor = getAnchor(obj);
+		Lockers lockers = null;
 
-		profiler.startComponentProfilerIndic("OU3 - xAnchor Waiting", indicator);
-		synchronized (anchor) {
-			System.out.println("Txn " + txNum + " X - Acquired anchor");
-			// logInfo("X - Acquiring anchor...");
-			profiler.stopComponentProfilerIndic("OU3 - xAnchor Waiting", indicator);
-			Lockers lockers = prepareLockers(obj);
-			
-			// synchronized(lockers.requestQueue){
-				if (hasXLock(lockers, txNum)) {
-					lockers.requestQueue.remove(txNum);
-					return;
-				}
-			// try {
-				Long head = lockers.requestQueue.peek();
-				while ((!xLockable(lockers, txNum) || (head != null && head.longValue() != txNum))) {
-					profiler.stopComponentProfilerIndic("OU3 - xLock Overhead", indicator);
-					profiler.startComponentProfilerIndic("OU3 - xLock Waiting", indicator);
-					// anchor.wait();
-					// synchronized(head){
-					// 	try{
-					// 		head.wait();
-					// 	} catch (InterruptedException e) {
-					// 		e.printStackTrace();
-					// 		throw new LockAbortException("Interrupted when waiting for lock of head");
-					// 	}
-					// }
-					profiler.stopComponentProfilerIndic("OU3 - xLock Waiting", indicator);
-					
-					// logInfo("X - Waiting Obj...");
-					// System.out.println("Txn " + txNum + " X - Waiting Obj...");
-					
-					String is_head_txNum = "";
-					if(head != null){is_head_txNum = head.longValue() != txNum? "True":"False";}
-					System.out.println("Txn " + txNum + " X - Waiting Obj... | " + "xLockable: " +  (xLockable(lockers, txNum)? "True":"False") + " | head null: " + (head != null? "True":"False") + " | head txNum: " + is_head_txNum);
-				// 	return (!sLocked(lks) || isTheOnlySLocker(lks, txNum))
-				// && (!sixLocked(lks) || hasSixLock(lks, txNum))
-				// && (!ixLocked(lks) || isTheOnlyIxLocker(lks, txNum))
-				// && (!isLocked(lks) || isTheOnlyIsLocker(lks, txNum))
-				// && (!xLocked(lks) || hasXLock(lks, txNum));
-					// waitObj(txNum, obj);
-					waitRequestQueue(txNum, lockers.requestQueue);
-					// logInfo("X - Finished waiting Obj");
-					System.out.println("Txn " + txNum + " X - Finished waiting Obj");
+		System.out.println("Txn " + txNum + " X - Acquired anchor");
+		lockers = prepareLockers(obj);
+		synchronized(lockers){
+			if (hasXLock(lockers, txNum)) {
+				lockers.requestQueue.remove(txNum);
+				return;
+			}
+		}
+		while (xLockCondition(lockers, txNum)) {
+			// String is_head_txNum = "";
+			// if(head != null){is_head_txNum = head.longValue() != txNum? "True":"False";}
+			// System.out.println("Txn " + txNum + " X - Waiting Obj... | " + "xLockable: " +  (xLockable(lockers, txNum)? "True":"False") + " | head null: " + (head != null? "True":"False") + " | head txNum: " + is_head_txNum + 
+			// 					" - | !sLocked(lks): " + (!sLocked(lockers)? "True":"False") + " | isTheOnlySLocker(lks, txNum): " + (isTheOnlySLocker(lockers, txNum)? "True":"False") + 
+			// 					" | !xLocked(lks): " + (!xLocked(lockers)? "True": "False") + " | hasXLock(lks, txNum): " + (hasXLock(lockers, txNum)? "True":"False") + " | Blocking: " + lockers.xLocker);
+			waitRequestQueue(txNum, lockers);
+			System.out.println("Txn " + txNum + " X - Finished waiting Obj");
 
-					lockers = prepareLockers(obj);
-					head = lockers.requestQueue.peek();
-					is_wait_anchor = true;
-				}
-
-				if(!is_wait_anchor){
-					profiler.stopComponentProfilerIndic("OU3 - xLock Overhead", indicator);
-					profiler.startComponentProfilerIndic("OU3 - xLock Waiting", indicator);
-					profiler.stopComponentProfilerIndic("OU3 - xLock Waiting", indicator);
-				}
-				lockers.requestQueue.poll();
-				lockers.xLocker = txNum;
-			// } catch (InterruptedException e) {
-			// 	throw new LockAbortException("Interrupted when waitting for lock");
-			// }
-			// }
+			lockers = prepareLockers(obj);
+		}
+		synchronized(lockers){
+			lockers.requestQueue.poll();
+			// syncPoll(lockers.requestQueue);
+			lockers.xLocker = txNum;
 		}
 		System.out.println("Txn " + txNum + " X - Acquired Lock");
 	}
@@ -424,30 +411,29 @@ public class ConservativeOrderedLockTable {
 	void release(Object obj, long txNum, LockType lockType) {
 		Object anchor = getAnchor(obj);
 		Queue<Object> anchorQueue = getQueue(obj);
-		synchronized (anchor) {
-			Lockers lks = lockerMap.get(obj);
-			
-			if (lks == null)
-				return;
-			
-			System.out.println("Releasing lock...");
+		Lockers lks = lockerMap.get(obj);
+		if (lks == null)
+			return;
+		synchronized (lks) {
+			System.out.println("Txn " + txNum + " Releasing lock...");
 			releaseLock(lks, txNum, lockType, anchor, anchorQueue, obj);
-			System.out.println("Released lock");
-
+			System.out.println("Txn " + txNum + "Released lock");
 			// Remove the locker, if there is no other transaction
 			// holding it
 			if (!sLocked(lks) && !xLocked(lks) && !sixLocked(lks)
 					&& !isLocked(lks) && !ixLocked(lks)
-					&& lks.requestQueue.isEmpty())
-				lockerMap.remove(obj);
-			
+					&& lks.requestQueue.isEmpty()){
+						lockerMap.remove(obj);
+			}else{
+				releaseRequestQueue(txNum, lks.requestQueue);
+			}
 			// There might be someone waiting for the lock
-			anchor.notifyAll();
-			System.out.println("Releasing obj...");
+			// anchor.notifyAll();
+			// System.out.println("Txn " + txNum + "Releasing obj...");
 			// releaseObj(txNum, obj);
-			// releaseRequestQueue(txNum, lks.requestQueue);
-			System.out.println("Released obj...");
+			// System.out.println("Txn " + txNum + "Released obj...");
 		}
+		// releaseRequestQueue(txNum, lks.requestQueue);
 	}
 
 	/**
@@ -463,39 +449,69 @@ public class ConservativeOrderedLockTable {
 		return anchors[code % anchors.length];
 	}
 
-	private void waitRequestQueue(long txNum, LinkedList<Long> requestQueue){
-		System.out.println("requestQueue size: " + requestQueue.size() + " while waiting for the lock.");
-		if(requestQueue.contains(txNum)){
-			int idx = requestQueue.indexOf(txNum);
-			Long obj = requestQueue.get(idx);
-			synchronized(obj){
-				try{
-					System.out.println("Waiting on Txn " + obj + " of requestQueue");
-					obj.wait(5);
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-					throw new LockAbortException("Interrupted when locking requestQueue");
-				}
+	private <T> T syncPeek(LinkedList<T> queue){
+		synchronized(queue){
+			return queue.peek();
+		}
+	}
+
+	private <T> T syncPoll(LinkedList<T> queue){
+		synchronized(queue){
+			return queue.poll();
+		}
+	}
+
+	private <T> boolean syncRemove(LinkedList<T> queue, T obj){
+		synchronized(queue){
+			return queue.remove(obj);
+		}
+	}
+
+	private <T> T syncGetElem(LinkedList<T> queue, T obj){
+		synchronized(queue){
+			int idx = queue.indexOf(obj);
+			return queue.get(idx);
+		}
+	}
+
+	private void waitRequestQueue(long txNum, Lockers lockers){
+		Long obj = null;
+		synchronized(lockers){
+			System.out.println("requestQueue size: " + lockers.requestQueue.size() + " while waiting for the lock.");
+
+			boolean condition = lockers.requestQueue.contains(txNum);
+			if(!condition){
+				System.out.println("Txn " + txNum + " isn't inside the queue");
+				return;
 			}
-		}else{
-			System.out.println("Txn " + txNum + " isn't inside the queue");
+			
+			int idx = lockers.requestQueue.indexOf(txNum);
+			obj = lockers.requestQueue.get(idx);
+		}
+		synchronized(obj){
+			try{
+				// if(xLockCondition(lockers, txNum)){
+					// System.out.println("Waiting on Txn " + obj + " of requestQueue");
+					obj.wait();
+				// }
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+				throw new LockAbortException("Interrupted when locking requestQueue");
+			}
 		}
 	}
 
 	private void releaseRequestQueue(long txNum, LinkedList<Long> requestQueue){
-		// synchronized(requestQueue){
-			// if(requestQueue.contains(txNum)){
-				// int idx = requestQueue.indexOf(txNum);
-				// Long obj = requestQueue.get(idx);
-				Long obj = requestQueue.peek();
-				if(obj != null){
-					synchronized(obj){
-						obj.notifyAll();
-						System.out.println("notifyAll of Txn " + obj + " inside requestQueue | requestQueue size: " + requestQueue.size());
-					}
-				}else{
-					System.out.println("requestQueue is empty, cannot notifyAll()");
-				}
+		Long obj = requestQueue.peek();
+		// Long obj = syncPeek(requestQueue);
+		if(obj != null){
+			synchronized(obj){
+				obj.notifyAll();
+				System.out.println("Txn " + txNum + " notifyAll of Txn " + obj + " inside requestQueue | requestQueue size: " + requestQueue.size());
+			}
+		}else{
+			System.out.println("Txn " + txNum + " requestQueue is empty, cannot notifyAll()");
+		}
 
 				// for(int i = 0; i < 1000; i++){
 				// 	obj = requestQueue.peek();
@@ -593,7 +609,7 @@ public class ConservativeOrderedLockTable {
 		case X_LOCK:
 			if (lks.xLocker == txNum) {
 				lks.xLocker = -1;
-				anchor.notifyAll();
+				// anchor.notifyAll();
 				// releaseObj(txNum, obj);
 			}
 			releaseRequestQueue(txNum, lks.requestQueue);
@@ -601,7 +617,7 @@ public class ConservativeOrderedLockTable {
 		case SIX_LOCK:
 			if (lks.sixLocker == txNum) {
 				lks.sixLocker = -1;
-				anchor.notifyAll();
+				// anchor.notifyAll();
 				// releaseObj(txNum, obj);
 			}
 			releaseRequestQueue(txNum, lks.requestQueue);
@@ -610,8 +626,8 @@ public class ConservativeOrderedLockTable {
 			List<Long> sl = lks.sLockers;
 			if (sl != null && sl.contains(txNum)) {
 				sl.remove((Long) txNum);
-				if (sl.isEmpty())
-					anchor.notifyAll();
+				// if (sl.isEmpty())
+					// anchor.notifyAll();
 					// releaseObj(txNum, obj);
 			}
 			releaseRequestQueue(txNum, lks.requestQueue);
@@ -620,8 +636,8 @@ public class ConservativeOrderedLockTable {
 			List<Long> isl = lks.isLockers;
 			if (isl != null && isl.contains(txNum)) {
 				isl.remove((Long) txNum);
-				if (isl.isEmpty())
-					anchor.notifyAll();
+				// if (isl.isEmpty())
+					// anchor.notifyAll();
 					// releaseObj(txNum, obj);
 			}
 			releaseRequestQueue(txNum, lks.requestQueue);
@@ -630,8 +646,8 @@ public class ConservativeOrderedLockTable {
 			List<Long> ixl = lks.ixLockers;
 			if (ixl != null && ixl.contains(txNum)) {
 				ixl.remove((Long) txNum);
-				if (ixl.isEmpty())
-					anchor.notifyAll();
+				// if (ixl.isEmpty())
+					// anchor.notifyAll();
 					// releaseObj(txNum, obj);
 			}
 			releaseRequestQueue(txNum, lks.requestQueue);
