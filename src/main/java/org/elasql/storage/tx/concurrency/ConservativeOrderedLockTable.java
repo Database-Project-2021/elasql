@@ -148,8 +148,9 @@ public class ConservativeOrderedLockTable {
 					// anchor.wait();
 					profiler.stopComponentProfilerIndic("OU3 - sLock Waiting", indicator);
 					
-					// logInfo("S - Waiting Obj...");
-					System.out.println("Txn " + txNum + " S - Waiting Obj...");
+					String is_head_txNum = "";
+					if(head != null){is_head_txNum = head.longValue() != txNum? "True":"False";}
+					System.out.println("Txn " + txNum + " S - Waiting Obj... | " + "sLockable: " +  (sLockable(lockers, txNum)? "True":"False") + " | head null: " + (head != null? "True":"False") + " | head txNum: " + is_head_txNum);
 					// waitObj(txNum, obj);
 					waitRequestQueue(txNum, lockers.requestQueue);
 					// logInfo("S - Finished waiting Obj");
@@ -245,6 +246,11 @@ public class ConservativeOrderedLockTable {
 					String is_head_txNum = "";
 					if(head != null){is_head_txNum = head.longValue() != txNum? "True":"False";}
 					System.out.println("Txn " + txNum + " X - Waiting Obj... | " + "xLockable: " +  (xLockable(lockers, txNum)? "True":"False") + " | head null: " + (head != null? "True":"False") + " | head txNum: " + is_head_txNum);
+				// 	return (!sLocked(lks) || isTheOnlySLocker(lks, txNum))
+				// && (!sixLocked(lks) || hasSixLock(lks, txNum))
+				// && (!ixLocked(lks) || isTheOnlyIxLocker(lks, txNum))
+				// && (!isLocked(lks) || isTheOnlyIsLocker(lks, txNum))
+				// && (!xLocked(lks) || hasXLock(lks, txNum));
 					// waitObj(txNum, obj);
 					waitRequestQueue(txNum, lockers.requestQueue);
 					// logInfo("X - Finished waiting Obj");
