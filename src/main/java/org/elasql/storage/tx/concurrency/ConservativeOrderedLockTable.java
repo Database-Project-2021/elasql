@@ -31,6 +31,7 @@ public class ConservativeOrderedLockTable {
 
 	private static final int NUM_ANCHOR = 1009;
 	private static Logger logger = Logger.getLogger(ConservativeOrderedLockTable.class.getName());
+	private static boolean debugMode = true;
 	
 	enum LockType {
 		IS_LOCK, IX_LOCK, S_LOCK, SIX_LOCK, X_LOCK
@@ -69,7 +70,7 @@ public class ConservativeOrderedLockTable {
 
 	// Lock-stripping
 	private final Object anchors[] = new Object[NUM_ANCHOR];
-	private final List<Queue<Object>> anchorQueues = new ArrayList<Queue<Object>>();
+	// private final List<Queue<Object>> anchorQueues = new ArrayList<Queue<Object>>();
 
 	/**
 	 * Create and initialize a conservative ordered lock table.
@@ -80,14 +81,14 @@ public class ConservativeOrderedLockTable {
 			anchors[i] = new Object();
 		}
 
-		for (int i = 0; i < anchors.length; ++i) {
-			anchorQueues.add(new LinkedList<Object>());
-		}
+		// for (int i = 0; i < anchors.length; ++i) {
+		// 	anchorQueues.add(new LinkedList<Object>());
+		// }
 	}
 
-	private void logInfo(String msg){
-		if (logger.isLoggable(Level.INFO)) 
-			logger.info(msg);
+	public static void printMsg(String msg){
+		if(debugMode)
+			System.out.println(msg);
 	}
 
 	/**
@@ -126,7 +127,8 @@ public class ConservativeOrderedLockTable {
 	 * 
 	 */
 	void sLock(Object obj, long txNum) {
-		System.out.println("Txn " + txNum + " S - Acquiring Lock...");
+		// System.out.println("Txn " + txNum + " S - Acquiring Lock...");
+		printMsg("Txn " + txNum + " S - Acquiring Lock...");
 		Lockers lockers = prepareLockers(obj);;
 	
 		synchronized(lockers){
@@ -143,7 +145,8 @@ public class ConservativeOrderedLockTable {
 			// System.out.println("Txn " + txNum + " S - Waiting Obj... | " + "sLockable: " +  (sLockable(lockers, txNum)? "True":"False") + " | head null: " + (head != null? "True":"False") + " | head txNum: " + is_head_txNum + " !sLocked(lks): " + (!sLocked(lockers)? "True":"False") + " isTheOnlySLocker(lks, txNum): " + (isTheOnlySLocker(lockers, txNum)? "True":"False") + 
 			// 				   " - | !xLocked(lks): " + (!xLocked(lockers)? "True":"False") + " | hasXLock(lks, txNum): " + (hasXLock(lockers, txNum)? "True":"False") + " | Blocking: " + lockers.xLocker);
 			waitRequestQueue(txNum, lockers);
-			System.out.println("Txn " + txNum + " S - Finished waiting Obj");
+			// System.out.println("Txn " + txNum + " S - Finished waiting Obj");
+			printMsg("Txn " + txNum + " S - Finished waiting Obj");
 			lockers = prepareLockers(obj);
 		}
 		
@@ -155,11 +158,14 @@ public class ConservativeOrderedLockTable {
 			lockers.sLockers.add(txNum);
 
 			// Wake up other waiting transactions (on this object) to let
-			System.out.println("Txn " + txNum + " S - Release Obj...");
+			// System.out.println("Txn " + txNum + " S - Release Obj...");
+			printMsg("Txn " + txNum + " S - Release Obj...");
 			releaseRequestQueue(txNum, lockers.requestQueue);
-			System.out.println("Txn " + txNum + " S - Released Obj...");
+			// System.out.println("Txn " + txNum + " S - Released Obj...");
+			printMsg("Txn " + txNum + " S - Released Obj...");
 		}
-		System.out.println("Txn " + txNum + " S - Acquired Lock");
+		// System.out.println("Txn " + txNum + " S - Acquired Lock");
+		printMsg("Txn " + txNum + " S - Acquired Lock");
 	}
 
 	private boolean xLockCondition(Lockers lockers, Long txNum){
@@ -182,11 +188,13 @@ public class ConservativeOrderedLockTable {
 	 * 
 	 */
 	void xLock(Object obj, long txNum) {
-		System.out.println("Txn " + txNum + " X - Acquiring Lock...");
+		// System.out.println("Txn " + txNum + " X - Acquiring Lock...");
+		printMsg("Txn " + txNum + " X - Acquiring Lock...");
 		// See the comments in sLock(..) for the explanation of the algorithm
 		Lockers lockers = prepareLockers(obj);
 
-		System.out.println("Txn " + txNum + " X - Acquired anchor");
+		// System.out.println("Txn " + txNum + " X - Acquired anchor");
+		printMsg("Txn " + txNum + " X - Acquired anchor");
 		synchronized(lockers){
 			if (hasXLock(lockers, txNum)) {
 				lockers.requestQueue.remove(txNum);
@@ -200,14 +208,16 @@ public class ConservativeOrderedLockTable {
 			// 					" - | !sLocked(lks): " + (!sLocked(lockers)? "True":"False") + " | isTheOnlySLocker(lks, txNum): " + (isTheOnlySLocker(lockers, txNum)? "True":"False") + 
 			// 					" | !xLocked(lks): " + (!xLocked(lockers)? "True": "False") + " | hasXLock(lks, txNum): " + (hasXLock(lockers, txNum)? "True":"False") + " | Blocking: " + lockers.xLocker);
 			waitRequestQueue(txNum, lockers);
-			System.out.println("Txn " + txNum + " X - Finished waiting Obj");
+			// System.out.println("Txn " + txNum + " X - Finished waiting Obj");
+			printMsg("Txn " + txNum + " X - Finished waiting Obj");
 			lockers = prepareLockers(obj);
 		}
 		synchronized(lockers){
 			lockers.requestQueue.poll();
 			lockers.xLocker = txNum;
 		}
-		System.out.println("Txn " + txNum + " X - Acquired Lock");
+		// System.out.println("Txn " + txNum + " X - Acquired Lock");
+		printMsg("Txn " + txNum + " X - Acquired Lock");
 	}
 
 	/**
@@ -361,9 +371,11 @@ public class ConservativeOrderedLockTable {
 		if (lks == null)
 			return;
 		synchronized (lks) {
-			System.out.println("Txn " + txNum + " Releasing lock...");
+			// System.out.println("Txn " + txNum + " Releasing lock...");
+			printMsg("Txn " + txNum + " Releasing lock...");
 			releaseLock(lks, txNum, lockType, anchor);
-			System.out.println("Txn " + txNum + "Released lock");
+			// System.out.println("Txn " + txNum + "Released lock");
+			printMsg("Txn " + txNum + "Released lock");
 			// Remove the locker, if there is no other transaction
 			// holding it
 			if (!sLocked(lks) && !xLocked(lks) && !sixLocked(lks)
@@ -420,11 +432,13 @@ public class ConservativeOrderedLockTable {
 	private void waitRequestQueue(long txNum, Lockers lockers){
 		Long obj = null;
 		synchronized(lockers){
-			System.out.println("requestQueue size: " + lockers.requestQueue.size() + " while waiting for the lock.");
+			// System.out.println("requestQueue size: " + lockers.requestQueue.size() + " while waiting for the lock.");
+			printMsg("requestQueue size: " + lockers.requestQueue.size() + " while waiting for the lock.");
 
 			boolean condition = lockers.requestQueue.contains(txNum);
 			if(!condition){
-				System.out.println("Txn " + txNum + " isn't inside the queue");
+				// System.out.println("Txn " + txNum + " isn't inside the queue");
+				printMsg("Txn " + txNum + " isn't inside the queue");
 				return;
 			}
 			
@@ -446,10 +460,12 @@ public class ConservativeOrderedLockTable {
 		if(obj != null){
 			synchronized(obj){
 				obj.notifyAll();
-				System.out.println("Txn " + txNum + " notifyAll of Txn " + obj + " inside requestQueue | requestQueue size: " + requestQueue.size());
+				// System.out.println("Txn " + txNum + " notifyAll of Txn " + obj + " inside requestQueue | requestQueue size: " + requestQueue.size());
+				printMsg("Txn " + txNum + " notifyAll of Txn " + obj + " inside requestQueue | requestQueue size: " + requestQueue.size());
 			}
 		}else{
-			System.out.println("Txn " + txNum + " requestQueue is empty, cannot notifyAll()");
+			// System.out.println("Txn " + txNum + " requestQueue is empty, cannot notifyAll()");
+			printMsg("Txn " + txNum + " requestQueue is empty, cannot notifyAll()");
 		}
 
 		// for(int i = 0; i < 1000; i++){
@@ -463,72 +479,65 @@ public class ConservativeOrderedLockTable {
 		// 	}
 	}
 
-	private Queue<Object> getQueue(Object obj) {
-		int code = obj.hashCode();
-		code = Math.abs(code); // avoid negative value
-		return anchorQueues.get(code % anchors.length);
-	}
+	// private Queue<Object> getQueue(Object obj) {
+	// 	int code = obj.hashCode();
+	// 	code = Math.abs(code); // avoid negative value
+	// 	return anchorQueues.get(code % anchors.length);
+	// }
 
-	private void lockObj(Object obj, Queue<Object> anchorQueue){
-		System.out.println(obj.toString() + " Locking obj...");
-		synchronized(obj){
-			synchronized(anchorQueue){
-				for(Object item: anchorQueue){
-					if(item.equals(obj)){
-						return;
-					}
-				}
+	// private void lockObj(Object obj, Queue<Object> anchorQueue){
+	// 	System.out.println(obj.toString() + " Locking obj...");
+	// 	synchronized(obj){
+	// 		synchronized(anchorQueue){
+	// 			for(Object item: anchorQueue){
+	// 				if(item.equals(obj)){
+	// 					return;
+	// 				}
+	// 			}
 
-				System.out.println(obj.toString() + " - " + obj.toString() + " - " + " Entering queue...");
-				anchorQueue.add(obj);
-				System.out.println(obj.toString() + " - " + obj.toString() + " - " + " Entered queue | size: " + anchorQueue.size());
-			}
+	// 			System.out.println(obj.toString() + " - " + obj.toString() + " - " + " Entering queue...");
+	// 			anchorQueue.add(obj);
+	// 			System.out.println(obj.toString() + " - " + obj.toString() + " - " + " Entered queue | size: " + anchorQueue.size());
+	// 		}
 
-			try{
-				System.out.println(obj.toString() + " Waiting...");
-				obj.wait();
-				System.out.println(obj.toString() + " Exited wait");
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-				throw new LockAbortException("Interrupted when locking object");
-			}
-		}
-	}
-
-	private void waitObj(Long txNum, Object obj){
-		Queue<Object> anchorQueue = getQueue(obj);
-		lockObj(txNum, anchorQueue);
-	}
-
-	// private void releaseQueue(Queue<Object> anchorQueue){
-	// 	Object wakeupObj = anchorQueue.poll();
-	// 	if(wakeupObj != null){
-	// 		wakeupObj.notifyAll();
+	// 		try{
+	// 			System.out.println(obj.toString() + " Waiting...");
+	// 			obj.wait();
+	// 			System.out.println(obj.toString() + " Exited wait");
+	// 		} catch (InterruptedException e) {
+	// 			e.printStackTrace();
+	// 			throw new LockAbortException("Interrupted when locking object");
+	// 		}
 	// 	}
 	// }
 
-	private void releaseObj(Long txNum, Object obj){
-		Queue<Object> anchorQueue = getQueue(obj);
-		synchronized(anchorQueue){
-			Object wakeupObj = anchorQueue.poll();
-			System.out.println("Txn " + txNum + " - " + obj.toString() + " - " + " Queue size: " + anchorQueue.size());
+	// private void waitObj(Long txNum, Object obj){
+	// 	Queue<Object> anchorQueue = getQueue(obj);
+	// 	lockObj(txNum, anchorQueue);
+	// }
 
-			if(wakeupObj != null){
-				System.out.println(wakeupObj.toString() + " Waking up");
-				synchronized(wakeupObj){
-					// try{
-					wakeupObj.notifyAll();
-					System.out.println(wakeupObj.toString() + " Notified");
-					// } catch (InterruptedException e) {
-					// 	e.printStackTrace();
-					// 	throw new LockAbortException("Interrupted when locking object");
-					// }
-				}
-			}else{
-				System.out.println("wakeupObj is null");
-			}
-		}
-	}
+	// private void releaseObj(Long txNum, Object obj){
+	// 	Queue<Object> anchorQueue = getQueue(obj);
+	// 	synchronized(anchorQueue){
+	// 		Object wakeupObj = anchorQueue.poll();
+	// 		System.out.println("Txn " + txNum + " - " + obj.toString() + " - " + " Queue size: " + anchorQueue.size());
+
+	// 		if(wakeupObj != null){
+	// 			System.out.println(wakeupObj.toString() + " Waking up");
+	// 			synchronized(wakeupObj){
+	// 				// try{
+	// 				wakeupObj.notifyAll();
+	// 				System.out.println(wakeupObj.toString() + " Notified");
+	// 				// } catch (InterruptedException e) {
+	// 				// 	e.printStackTrace();
+	// 				// 	throw new LockAbortException("Interrupted when locking object");
+	// 				// }
+	// 			}
+	// 		}else{
+	// 			System.out.println("wakeupObj is null");
+	// 		}
+	// 	}
+	// }
 
 	private Lockers prepareLockers(Object obj) {
 		synchronized(getAnchor(obj)){
